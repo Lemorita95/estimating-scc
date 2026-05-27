@@ -1,0 +1,471 @@
+{
+    "buses": [
+        {
+            "id": 1,
+            "name": "Bus 1",
+            "bus_type": "Slack",       
+            "V": 1.06,
+            "angle": 0.0
+        },
+        {
+            "id": 2,
+            "name": "Bus 2"
+        },
+        {
+            "id": 3,
+            "name": "Bus 3"
+        },
+        {
+            "id": 4,
+            "name": "Bus 4"
+        },
+        {
+            "id": 5,
+            "name": "Bus 5"
+        },
+        {
+            "id": 6,
+            "name": "Bus 6"
+        },
+        {
+            "id": 7,
+            "name": "Bus 7"
+        },
+        {
+            "id": 8,
+            "name": "Bus 8"
+        },
+        {
+            "id": 9,
+            "name": "Bus 9"
+        },
+        {
+            "id": 10,
+            "name": "Bus 10"
+        },
+        {
+            "id": 11,
+            "name": "Bus 11"
+        },
+        {
+            "id": 12,
+            "name": "Bus 12"
+        },
+        {
+            "id": 13,
+            "name": "Bus 13"
+        },
+        {
+            "id": 14,
+            "name": "Bus 14"
+        }
+    ],
+
+    "elements": {
+
+        "lines": [
+            {
+                "from_bus": 1,
+                "to_bus": 2,
+                "name": "Line 12",
+                "z_series": {"R": 0.01938, "X": 0.05917},
+                "y_shunt": {"G": 0, "B": 0.0528}
+            },
+            {
+                "from_bus": 1,
+                "to_bus": 5,
+                "name": "Line 15",
+                "z_series": {"R": 0.05403, "X": 0.22304},
+                "y_shunt": {"G": 0, "B": 0.0492}
+            },
+            {
+                "from_bus": 2,
+                "to_bus": 3,
+                "name": "Line 23",
+                "z_series": {"R": 0.04699, "X": 0.19797},
+                "y_shunt": {"G": 0, "B": 0.0438}
+            },
+            {
+                "from_bus": 2,
+                "to_bus": 4,
+                "name": "Line 24",
+                "z_series": {"R": 0.05811, "X": 0.17632},
+                "y_shunt": {"G": 0, "B": 0.0340}
+            },
+            {
+                "from_bus": 2,
+                "to_bus": 5,
+                "name": "Line 25",
+                "z_series": {"R": 0.05695, "X": 0.17388},
+                "y_shunt": {"G": 0, "B": 0.0346}
+            },
+            {
+                "from_bus": 3,
+                "to_bus": 4,
+                "name": "Line 34",
+                "z_series": {"R": 0.06701, "X": 0.17103},
+                "y_shunt": {"G": 0, "B": 0.0128}
+            },
+            {
+                "from_bus": 4,
+                "to_bus": 5,
+                "name": "Line 45",
+                "z_series": {"R": 0.01335, "X": 0.04211},
+                "y_shunt": {"G": 0, "B": 0}
+            },
+            {
+                "from_bus": 6,
+                "to_bus": 11,
+                "name": "Line 611",
+                "z_series": {"R": 0.09498, "X": 0.1989},
+                "y_shunt": {"G": 0, "B": 0}
+            },
+            {
+                "from_bus": 6,
+                "to_bus": 12,
+                "name": "Line 612",
+                "z_series": {"R": 0.12291, "X": 0.25581},
+                "y_shunt": {"G": 0, "B": 0}
+            },
+            {
+                "from_bus": 6,
+                "to_bus": 13,
+                "name": "Line 613",
+                "z_series": {"R": 0.06615, "X": 0.13027},
+                "y_shunt": {"G": 0, "B": 0}
+            },
+            {
+                "from_bus": 7,
+                "to_bus": 9,
+                "name": "Line 79",
+                "z_series": {"R": 0, "X": 0.11001},
+                "y_shunt": {"G": 0, "B": 0}
+            },
+            {
+                "from_bus": 9,
+                "to_bus": 10,
+                "name": "Line 910",
+                "z_series": {"R": 0.03181, "X": 0.0845},
+                "y_shunt": {"G": 0, "B": 0}
+            },
+            {
+                "from_bus": 9,
+                "to_bus": 14,
+                "name": "Line 914",
+                "z_series": {"R": 0.12711, "X": 0.27038},
+                "y_shunt": {"G": 0, "B": 0}
+            },
+            {
+                "from_bus": 10,
+                "to_bus": 11,
+                "name": "Line 1011",
+                "z_series": {"R": 0.08205, "X": 0.19207},
+                "y_shunt": {"G": 0, "B": 0}
+            },
+            {
+                "from_bus": 12,
+                "to_bus": 13,
+                "name": "Line 1213",
+                "z_series": {"R": 0.22092, "X": 0.19988},
+                "y_shunt": {"G": 0, "B": 0}
+            },
+            {
+                "from_bus": 13,
+                "to_bus": 14,
+                "name": "Line 1314",
+                "z_series": {"R": 0.17093, "X": 0.34802},
+                "y_shunt": {"G": 0, "B": 0}
+            }
+        ],
+
+        "transformers": [
+            {
+                "from_bus": 4,
+                "to_bus": 7,
+                "name": "Transformer 47",
+                "z_series": {"R": 0, "X": 0.20912},
+                "y_shunt": null,
+                "m": 0.978
+            },
+            {
+                "from_bus": 4,
+                "to_bus": 9,
+                "name": "Transformer 49",
+                "z_series": {"R": 0, "X": 0.55618},
+                "y_shunt": null,
+                "m": 0.969
+            },
+            {
+                "from_bus": 5,
+                "to_bus": 6,
+                "name": "Transformer 56",
+                "z_series": {"R": 0, "X": 0.25202},
+                "y_shunt": null,
+                "m": 0.932
+            },
+            {
+                "from_bus": 7,
+                "to_bus": 8,
+                "name": "Transformer 78",
+                "z_series": {"R": 0, "X": 0.17615},
+                "y_shunt": null
+            }
+        ],
+
+        "capacitors": [
+            {
+                "from_bus": 9,
+                "to_bus": 0,
+                "name": "Capacitor 9",
+                "z_series": null,
+                "y_shunt": {"G": 0.0, "B": 0.19},
+                "status": 1
+            }
+        ],
+        
+        "generators": [
+            {
+                "from_bus": 1,
+                "to_bus": 0,
+                "name": "G1",
+                "z_series": {"R": 0.0, "X": 0.0457589},
+                "y_shunt": null,
+                "V": 1.06,
+                "P": 2.324,
+                "Q": null,
+                "Qg_max": 9.9,
+                "Qg_min": -9.9,
+                "status": 1
+            },
+            {
+                "from_bus": 2,
+                "to_bus": 0,
+                "name": "G2",
+                "z_series": {"R": 0.0, "X": 0.145},
+                "y_shunt": null,
+                "V": 1.045,
+                "P": 0.4,
+                "Q": null,
+                "Qg_max": 0.5,
+                "Qg_min": -0.4,
+                "status": 1
+            },
+            {
+                "from_bus": 3,
+                "to_bus": 0,
+                "name": "G3",
+                "z_series": {"R": 0.0, "X": 0.5775000},
+                "y_shunt": null,
+                "V": 1.01,
+                "P": 0,
+                "Q": null,
+                "Qg_max": 0.4,
+                "Qg_min": 0,
+                "status": 1
+            },
+            {
+                "from_bus": 6,
+                "to_bus": 0,
+                "name": "G6",
+                "z_series": {"R": 0.0, "X": 0.8140000},
+                "y_shunt": null,
+                "V": 1.07,
+                "P": 0,
+                "Q": null,
+                "Qg_max": 0.24,
+                "Qg_min": -0.06,
+                "status": 1
+            },
+            {
+                "from_bus": 8,
+                "to_bus": 0,
+                "name": "G8",
+                "z_series": {"R": 0.0, "X": 0.8140000},
+                "y_shunt": null,
+                "V": 1.09,
+                "P": 0,
+                "Q": null,
+                "Qg_max": 0.24,
+                "Qg_min": -0.06,
+                "status": 1
+            },
+            {
+                "from_bus": 12,
+                "to_bus": 0,
+                "name": "G12",
+                "z_series": {"R": 0.016, "X": 0.394666667},
+                "y_shunt": null,
+                "V": 1.045,
+                "P": 0.06,
+                "Q": null,
+                "Qg_max": 0.1125,
+                "Qg_min": -0.1125,
+                "status": 0
+            },
+            {
+                "from_bus": 13,
+                "to_bus": 0,
+                "name": "G13",
+                "z_series": {"R": 0.016, "X": 0.394666667},
+                "y_shunt": null,
+                "V": 1.045,
+                "P": 0.07,
+                "Q": null,
+                "Qg_max": 0.1125,
+                "Qg_min": -0.1125,
+                "status": 0
+            },
+            {
+                "from_bus": 14,
+                "to_bus": 0,
+                "name": "G14",
+                "z_series": {"R": 0.016, "X": 0.394666667},
+                "y_shunt": null,
+                "V": 1.045,
+                "P": 0.08,
+                "Q": null,
+                "Qg_max": 0.1125,
+                "Qg_min": -0.1125,
+                "status": 0
+            }
+        ],
+        
+        "loads": [
+            {
+                "from_bus": 2,
+                "to_bus": 0,
+                "name": "Load 2",
+                "P": 0.217,
+                "Q": 0.127
+            },
+            {
+                "from_bus": 3,
+                "to_bus": 0,
+                "name": "Load 3",
+                "P": 0.942,
+                "Q": 0.19
+            },
+            {
+                "from_bus": 4,
+                "to_bus": 0,
+                "name": "Load 4",
+                "P": 0.478,
+                "Q": -0.039
+            },
+            {
+                "from_bus": 5,
+                "to_bus": 0,
+                "name": "Load 5",
+                "P": 0.076,
+                "Q": 0.016
+            },
+            {
+                "from_bus": 6,
+                "to_bus": 0,
+                "name": "Load 6",
+                "P": 0.112,
+                "Q": 0.075
+            },
+            {
+                "from_bus": 9,
+                "to_bus": 0,
+                "name": "Load 9",
+                "P": 0.295,
+                "Q": 0.166
+            },
+            {
+                "from_bus": 10,
+                "to_bus": 0,
+                "name": "Load 10",
+                "P": 0.09,
+                "Q": 0.058
+            },
+            {
+                "from_bus": 11,
+                "to_bus": 0,
+                "name": "Load 11",
+                "P": 0.035,
+                "Q": 0.018
+            },
+            {
+                "from_bus": 12,
+                "to_bus": 0,
+                "name": "Load 12",
+                "P": 0.061,
+                "Q": 0.016
+            },
+            {
+                "from_bus": 13,
+                "to_bus": 0,
+                "name": "Load 13",
+                "P": 0.135,
+                "Q": 0.058
+            },
+            {
+                "from_bus": 14,
+                "to_bus": 0,
+                "name": "Load 14",
+                "P": 0.149,
+                "Q": 0.05
+            }
+        ],
+
+        "full_converters": [
+            {
+                "name": "FC2",
+                "from_bus": 2,
+                "kVA_nominal": 10000,
+                "cos_phi": 0.9,
+                "kV_nominal": 138,
+                "K_scc": 1.2,
+                "V_min": 0.15,
+                "K_factor": 3.0,
+                "status": 0
+            },
+            {
+                "name": "FC12",
+                "from_bus": 12,
+                "kVA_nominal": 400000,
+                "cos_phi": 0.9,
+                "P": 0.1,
+                "kV_nominal": 138,
+                "K_scc": 1.2,
+                "V_min": 0.15,
+                "K_factor": 3.0,
+                "status": 0
+            },
+            {
+                "name": "FC13",
+                "from_bus": 13,
+                "kVA_nominal": 7000,
+                "cos_phi": 0.9,
+                "kV_nominal": 138,
+                "K_scc": 1.2,
+                "V_min": 0.15,
+                "K_factor": 3.0,
+                "status": 0
+            },
+            {
+                "name": "FC14",
+                "from_bus": 14,
+                "kVA_nominal": 8000,
+                "cos_phi": 0.9,
+                "kV_nominal": 138,
+                "K_scc": 1.2,
+                "V_min": 0.15,
+                "K_factor": 3.0,
+                "status": 0
+            }
+        ],
+
+        "external_grids": [
+            {
+                "from_bus": 13,
+                "name": "External Grid 2",
+                "kV_nom": 138,
+                "S_SC_MVA": 1000,
+                "status": 0
+            }
+        ]
+    }
+}

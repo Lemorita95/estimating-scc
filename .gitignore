@@ -1,0 +1,17 @@
+.DS_Store
+__pycache__
+*.code-workspace
+.env
+.venv
+
+/_old
+/images
+/references
+/reports
+/tables
+models/_bkp
+models/IEC-models
+/cases/_old
+/Thesis
+/reduced-order-model
+
