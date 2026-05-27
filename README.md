@@ -1,9 +1,8 @@
-# TITLE
+# Estimating Variation of Short Circuit Power.
+[An Uppsala University master thesis](Thesis.pdf).
 
-## content
+## Abstract
+Power systems are operated and designed to ensure proper management of faults, such as short circuits. Power generation are traditionally based on synchronous generators, these machines have a desired inherent property of supplying fault currents several times their nominal current, which makes it easier for protection relays to properly detect and clear these faults. However, the increased penetration of converter-interfaced generation also brings additional challenges both in supplying enough fault current to the power system and in quantifying the short circuit capacity throughout the system. This work tackles the latter by proposing a Python-based modular framework for continuous and automated short circuit calculation. The work aims to propose a low-effort data-driven screening method that provides indicators that may raise the need for more detailed studies using conventional commercial software. Validations of the proposed method was performed against PowerWorld and the relative error between the calculated short circuit current was less than 3 percent, for cases without converter-interfaced generation. The literature and simulations showed that synchronous machine is the main supporter of short circuit capacity, the results found that a converter-interfaced generation 20 times the size of a synchronous generator supply less than half the amount of fault current of the machine’s. Although the converter interfaced generation contribution to short circuit is dependent on their control strategy, these devices’ contribution are limited to ensure its components safety. Moreover, other aspects of the power system that produces changes in the short circuit capacity were also accessed and the main factors of influence found was the disconnection of synchronous generators, changes in topology and contribution of external grids. A reduced order model encoding the main factors of influence was also proposed, anticipating limited data availability and to enable faster, simpler deployment on real electrical power systems.
 
 ## reproducibility
-
-## approach
-
-## results
+run [run_cases.py](run_cases.py) to generate the short circuit data and cases metadata. run [analysis.py](analysis.py) and [spatial_plot.py](spatial_plot.py) to generate the figures charts from the work.
