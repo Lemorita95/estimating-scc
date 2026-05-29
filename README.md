@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/1251292557.svg)](https://doi.org/10.5281/zenodo.20449476)
+
 # Estimating Variation of Short Circuit Power.
 [An Uppsala University master thesis](Thesis.pdf).
 
