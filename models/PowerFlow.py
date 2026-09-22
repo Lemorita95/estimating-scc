@@ -171,7 +171,8 @@ class PowerFlow():
         PQ_idx = np.array([bus_idx[n] for n in PQ_id], dtype=int) # python index
 
         # create Theta, V vector
-        Theta0 = np.zeros(num_bus)
+        slack_angle = np.deg2rad(CN.buses[CN.slack_id].angle)
+        Theta0 = np.full(num_bus, slack_angle)
         V0 = np.ones(num_bus)
         V0[slack_idx] = CN.buses[CN.slack_id].V # set slack bus voltage magnitude from network data
 
