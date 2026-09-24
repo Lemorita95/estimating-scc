@@ -259,9 +259,11 @@ class PowerFlow():
         for shunt in CustomNetwork.capacitors.values():
             if not shunt.status:
                 continue
-            bus_n = shunt.bus_1
-            _, _, Y_prim = shunt.get_Y()
-            Ysh_diag[CustomNetwork.idx[bus_n]] += Y_prim      # accumulate if multiple shunts at same bus
+
+            rows, cols, data = shunt.get_Y()
+
+            for r, c, y in zip(rows, cols, data):
+                Ysh_diag[CustomNetwork.idx[r]] += y
 
         # Build sparse diagonal YBus for shunts only
         YBus_shunt = diags(Ysh_diag, 0, format='csr')
