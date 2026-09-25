@@ -3,14 +3,6 @@ __pycache__
 *.code-workspace
 .env
 .venv
+*.pyc
 
-/_old
-/images
-/references
-/reports
-/tables
-models/_bkp
-models/IEC-models
-/cases/_old
-/Thesis
-
+figures/
