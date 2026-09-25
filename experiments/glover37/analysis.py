@@ -462,15 +462,15 @@ def summarize(
         f"{len(comparison)}"
     )
 
-    print(
-        f"Mean SCL delta       : "
-        f"{delta.mean():+.4f} %"
-    )
+    # print(
+    #     f"Mean SCL delta       : "
+    #     f"{delta.mean():+.4f} %"
+    # )
 
-    print(
-        f"Mean |SCL delta|     : "
-        f"{absolute.mean():.4f} %"
-    )
+    # print(
+    #     f"Mean |SCL delta|     : "
+    #     f"{absolute.mean():.4f} %"
+    # )
 
     print(
         f"Maximum increase     : "

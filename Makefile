@@ -11,6 +11,8 @@ GLOVER37_REPORT := $(POWERWORLD_GLOVER37)/conversion_report.md
 	run-all \
 	analyze \
 	analyze-all \
+	plot \
+	plot-all \
 	clean-results
 
 
@@ -57,6 +59,18 @@ endif
 
 analyze-all:
 	$(PYTHON) -m experiments.glover37.analysis --all
+
+
+plot:
+ifndef SCENARIO
+	$(error Usage: make plot SCENARIO=A1)
+endif
+	$(PYTHON) -m experiments.glover37.plot_sld \
+		--scenario $(SCENARIO)
+
+
+plot-all:
+	$(PYTHON) -m experiments.glover37.plot_sld --all
 
 
 clean-results:
