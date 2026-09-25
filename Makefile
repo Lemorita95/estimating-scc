@@ -13,6 +13,10 @@ GLOVER37_REPORT := $(POWERWORLD_GLOVER37)/conversion_report.md
 	analyze-all \
 	plot \
 	plot-all \
+	validate-pw \
+	validate-pw-state \
+	validate-pw-scenario \
+	validate-pw-a1-a2 \
 	clean-results
 
 
@@ -28,12 +32,13 @@ build-glover37-case:
 
 
 # ------------------------------------------------------------
-# Experiment shortcuts
+# Experiment execution
 #
 # Examples:
 #
 #   make run SCENARIO=A1
 #   make analyze SCENARIO=A1
+#   make plot SCENARIO=A1
 #
 # ------------------------------------------------------------
 
@@ -72,6 +77,51 @@ endif
 plot-all:
 	$(PYTHON) -m experiments.glover37.plot_sld --all
 
+
+# ------------------------------------------------------------
+# PowerWorld validation
+#
+# Full Gate-6 validation:
+#
+#   make validate-pw
+#
+# Individual checks:
+#
+#   make validate-pw-state STATE=base
+#   make validate-pw-scenario SCENARIO=A2
+#   make validate-pw-a1-a2
+#
+# ------------------------------------------------------------
+
+validate-pw:
+	$(PYTHON) -m experiments.glover37.validate_powerworld \
+		--all
+
+
+validate-pw-state:
+ifndef STATE
+	$(error Usage: make validate-pw-state STATE=base)
+endif
+	$(PYTHON) -m experiments.glover37.validate_powerworld \
+		--state $(STATE)
+
+
+validate-pw-scenario:
+ifndef SCENARIO
+	$(error Usage: make validate-pw-scenario SCENARIO=A1)
+endif
+	$(PYTHON) -m experiments.glover37.validate_powerworld \
+		--scenario $(SCENARIO)
+
+
+validate-pw-a1-a2:
+	$(PYTHON) -m experiments.glover37.validate_powerworld \
+		--a1-a2
+
+
+# ------------------------------------------------------------
+# Cleanup
+# ------------------------------------------------------------
 
 clean-results:
 	rm -rf results/glover37
