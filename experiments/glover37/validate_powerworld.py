@@ -6,199 +6,56 @@ import csv
 import math
 import re
 from pathlib import Path
-from statistics import mean
 
 import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[2]
+RESULTS_ROOT = ROOT / "results" / "glover37"
+POWERWORLD_ROOT = ROOT / "data" / "powerworld" / "glover37"
+VALIDATION_ROOT = RESULTS_ROOT / "validation"
 
-RESULTS_ROOT = (
-    ROOT
-    / "results"
-    / "glover37"
-)
-
-POWERWORLD_ROOT = (
-    ROOT
-    / "data"
-    / "powerworld"
-    / "glover37"
-)
-
-VALIDATION_ROOT = (
-    RESULTS_ROOT
-    / "validation"
-)
-
-STATE_ORDER = [
-    "base",
-    "A1",
-    "A2",
-    "A3",
-    "B1",
-    "B2",
-    "B3",
-]
-
-SCENARIO_ORDER = [
-    "A1",
-    "A2",
-    "A3",
-    "B1",
-    "B2",
-    "B3",
-]
+STATES = ("base", "A1", "A2", "A3", "B1", "B2", "B3")
+SCENARIOS = STATES[1:]
 
 
-# ============================================================
-# Generic utilities
-# ============================================================
+def pw_float(value: str | None) -> float:
+    if value is None or not str(value).strip():
+        raise ValueError("Missing numeric value in PowerWorld CSV.")
+    return float(str(value).strip().replace(",", "."))
 
 
-def pw_float(
-    value: str | None,
-) -> float:
-    """
-    Convert PowerWorld numeric text.
-
-    PowerWorld exports use decimal commas inside quoted CSV
-    fields, e.g. "30,45826".
-    """
-
-    if value is None:
-        raise ValueError(
-            "Missing numeric value in PowerWorld CSV."
-        )
-
-    text = str(value).strip()
-
-    if not text:
-        raise ValueError(
-            "Empty numeric value in PowerWorld CSV."
-        )
-
-    return float(
-        text.replace(",", ".")
-    )
-
-
-def parse_bus_id(
-    whoami: str,
-) -> int:
-
-    match = re.fullmatch(
-        r"\s*Bus\s+'(\d+)'\s*",
-        whoami or "",
-    )
-
+def parse_bus_id(whoami: str) -> int:
+    match = re.fullmatch(r"\s*Bus\s+'(\d+)'\s*", whoami or "")
     if not match:
-        raise ValueError(
-            "Could not parse PowerWorld bus from "
-            f"WhoAmI={whoami!r}"
-        )
-
-    return int(
-        match.group(1)
-    )
+        raise ValueError(f"Could not parse PowerWorld bus from WhoAmI={whoami!r}")
+    return int(match.group(1))
 
 
-def wrapped_angle_difference_deg(
-    a: float,
-    b: float,
-) -> float:
-    """
-    Signed wrapped angle difference a - b in [-180, 180).
-    """
-
-    return (
-        a
-        - b
-        + 180.0
-    ) % 360.0 - 180.0
+def angle_diff(a: float, b: float) -> float:
+    return (a - b + 180.0) % 360.0 - 180.0
 
 
-def rmse(
-    values: list[float],
-) -> float:
-
-    if not values:
-        return math.nan
-
-    return math.sqrt(
-        sum(
-            value * value
-            for value
-            in values
-        )
-        / len(values)
-    )
+def pct(delta: float, reference: float) -> float:
+    return math.nan if abs(reference) < 1e-15 else 100.0 * delta / reference
 
 
-def safe_percent(
-    numerator: float,
-    denominator: float,
-) -> float:
-
-    if abs(denominator) < 1e-15:
-        return math.nan
-
-    return (
-        100.0
-        * numerator
-        / denominator
-    )
+def rmse(series: pd.Series) -> float:
+    return float((series.pow(2).mean()) ** 0.5)
 
 
-# ============================================================
-# Input paths
-# ============================================================
+def assert_same_buses(label: str, *frames: pd.DataFrame) -> None:
+    bus_sets = [set(df.index) for df in frames]
+    if not all(buses == bus_sets[0] for buses in bus_sets[1:]):
+        raise ValueError(f"{label}: bus sets do not match.")
 
 
-def python_results_file(
-    state: str,
-) -> Path:
-
-    return (
-        RESULTS_ROOT
-        / state
-        / "results.csv"
-    )
-
-
-def powerworld_file(
-    state: str,
-) -> Path:
-
-    return (
-        POWERWORLD_ROOT
-        / state
-        / "shortcircuit.csv"
-    )
-
-
-# ============================================================
-# Python results
-# ============================================================
-
-
-def read_python_results(
-    state: str,
-) -> dict[int, dict]:
-
-    path = python_results_file(
-        state
-    )
-
+def read_python(state: str) -> pd.DataFrame:
+    path = RESULTS_ROOT / state / "results.csv"
     if not path.is_file():
-        raise FileNotFoundError(
-            f"Python result file not found: {path}"
-        )
+        raise FileNotFoundError(f"Python result file not found: {path}")
 
-    data = pd.read_csv(
-        path
-    )
-
+    df = pd.read_csv(path)
     required = {
         "bus",
         "pre_fault_V_mag",
@@ -206,123 +63,39 @@ def read_python_results(
         "I_SCC_mag_pu",
         "I_SCC_ang_deg",
         "SCL_pu",
-        "SCL_MVA",
     }
-
-    missing = (
-        required
-        - set(
-            data.columns
-        )
-    )
-
+    missing = required - set(df.columns)
     if missing:
-        raise ValueError(
-            f"{path} is missing columns: "
-            f"{sorted(missing)}"
+        raise ValueError(f"{path} is missing columns: {sorted(missing)}")
+
+    if df["bus"].duplicated().any():
+        raise ValueError(f"{path} contains duplicate bus rows.")
+
+    return (
+        df.rename(
+            columns={
+                "pre_fault_V_mag": "V_mag_pu",
+                "pre_fault_V_ang_deg": "V_angle_deg",
+                "I_SCC_mag_pu": "I_mag_pu",
+                "I_SCC_ang_deg": "I_angle_deg",
+            }
         )
-
-    results = {}
-
-    for row in data.itertuples():
-
-        bus = int(
-            row.bus
-        )
-
-        if bus in results:
-            raise ValueError(
-                f"Duplicate Python result for bus {bus} "
-                f"in {path}"
-            )
-
-        results[bus] = {
-            "V_mag_pu":
-                float(
-                    row.pre_fault_V_mag
-                ),
-
-            "V_angle_deg":
-                float(
-                    row.pre_fault_V_ang_deg
-                ),
-
-            "I_mag_pu":
-                float(
-                    row.I_SCC_mag_pu
-                ),
-
-            "I_angle_deg":
-                float(
-                    row.I_SCC_ang_deg
-                ),
-
-            "SCL_pu":
-                float(
-                    row.SCL_pu
-                ),
-
-            "SCL_MVA":
-                float(
-                    row.SCL_MVA
-                ),
-        }
-
-    return results
-
-
-# ============================================================
-# PowerWorld results
-# ============================================================
-
-
-def read_powerworld_results(
-    state: str,
-) -> dict[int, dict]:
-    """
-    Read one PowerWorld three-phase balanced-fault export.
-
-    The export contains:
-        line 1 : object label "Fault"
-        line 2 : CSV header
-
-    Besides fault current, FaultThevImp R/X are used to
-    reconstruct the pre-fault voltage:
-
-        V_pre = I_fault * Z_th
-    """
-
-    path = powerworld_file(
-        state
+        .set_index("bus")
+        [["V_mag_pu", "V_angle_deg", "I_mag_pu", "I_angle_deg", "SCL_pu"]]
+        .sort_index()
     )
 
+
+def read_powerworld(state: str) -> pd.DataFrame:
+    path = POWERWORLD_ROOT / state / "shortcircuit.csv"
     if not path.is_file():
-        raise FileNotFoundError(
-            f"PowerWorld result file not found: {path}"
-        )
+        raise FileNotFoundError(f"PowerWorld result file not found: {path}")
 
-    results = {}
+    with path.open("r", encoding="utf-8-sig", newline="") as f:
+        if not f.readline().strip():
+            raise ValueError(f"{path} is empty.")
 
-    with path.open(
-        "r",
-        encoding="utf-8-sig",
-        newline="",
-    ) as file:
-
-        object_name = (
-            file.readline()
-            .strip()
-        )
-
-        if not object_name:
-            raise ValueError(
-                f"{path} is empty."
-            )
-
-        reader = csv.DictReader(
-            file
-        )
-
+        reader = csv.DictReader(f)
         required = {
             "WhoAmI",
             "FaultType",
@@ -333,1224 +106,284 @@ def read_powerworld_results(
             "FaultThevImp",
             "FaultThevImp:1",
         }
-
-        missing = (
-            required
-            - set(
-                reader.fieldnames
-                or []
-            )
-        )
-
+        missing = required - set(reader.fieldnames or [])
         if missing:
-            raise ValueError(
-                f"{path} is missing columns: "
-                f"{sorted(missing)}"
-            )
+            raise ValueError(f"{path} is missing columns: {sorted(missing)}")
 
+        rows = []
         for row in reader:
+            bus = parse_bus_id(row["WhoAmI"])
 
-            bus = parse_bus_id(
-                row["WhoAmI"]
-            )
-
-            if bus in results:
+            if row["FaultType"].strip() != "3PB":
                 raise ValueError(
-                    f"Duplicate PowerWorld result "
-                    f"for bus {bus} in {path}"
+                    f"{state}, bus {bus}: expected 3PB fault, "
+                    f"found {row['FaultType']!r}."
                 )
 
-            fault_type = (
-                row["FaultType"]
-                .strip()
-            )
-
-            if fault_type != "3PB":
+            fault_r = pw_float(row["FaultImpedance"])
+            fault_x = pw_float(row["FaultImpedance:1"])
+            if abs(fault_r) > 1e-12 or abs(fault_x) > 1e-12:
                 raise ValueError(
-                    f"{state}, bus {bus}: "
-                    f"expected 3PB fault, "
-                    f"found {fault_type!r}"
+                    f"{state}, bus {bus}: expected bolted fault, "
+                    f"found R={fault_r}, X={fault_x}."
                 )
 
-            fault_r = pw_float(
-                row[
-                    "FaultImpedance"
-                ]
+            i_mag = pw_float(row["ABCPhaseI"])
+            i_angle = pw_float(row["ABCPhaseAngle"])
+            r_th = pw_float(row["FaultThevImp"])
+            x_th = pw_float(row["FaultThevImp:1"])
+
+            i_complex = i_mag * cmath.exp(1j * math.radians(i_angle))
+            v_complex = i_complex * complex(r_th, x_th)
+
+            rows.append(
+                {
+                    "bus": bus,
+                    "V_mag_pu": abs(v_complex),
+                    "V_angle_deg": math.degrees(cmath.phase(v_complex)),
+                    "I_mag_pu": i_mag,
+                    "I_angle_deg": i_angle,
+                    "SCL_pu": i_mag,
+                    "R_th_pu": r_th,
+                    "X_th_pu": x_th,
+                }
             )
 
-            fault_x = pw_float(
-                row[
-                    "FaultImpedance:1"
-                ]
-            )
-
-            if (
-                abs(fault_r) > 1e-12
-                or abs(fault_x) > 1e-12
-            ):
-                raise ValueError(
-                    f"{state}, bus {bus}: "
-                    "expected bolted fault, "
-                    f"found R={fault_r}, X={fault_x}"
-                )
-
-            i_mag = pw_float(
-                row[
-                    "ABCPhaseI"
-                ]
-            )
-
-            i_angle_deg = (
-                pw_float(
-                    row[
-                        "ABCPhaseAngle"
-                    ]
-                )
-            )
-
-            r_th = pw_float(
-                row[
-                    "FaultThevImp"
-                ]
-            )
-
-            x_th = pw_float(
-                row[
-                    "FaultThevImp:1"
-                ]
-            )
-
-            i_complex = (
-                i_mag
-                * cmath.exp(
-                    1j
-                    * math.radians(
-                        i_angle_deg
-                    )
-                )
-            )
-
-            z_th = complex(
-                r_th,
-                x_th,
-            )
-
-            v_complex = (
-                i_complex
-                * z_th
-            )
-
-            v_mag = abs(
-                v_complex
-            )
-
-            v_angle_deg = (
-                math.degrees(
-                    cmath.phase(
-                        v_complex
-                    )
-                )
-            )
-
-            results[bus] = {
-                "I_mag_pu":
-                    i_mag,
-
-                "I_angle_deg":
-                    i_angle_deg,
-
-                "R_th_pu":
-                    r_th,
-
-                "X_th_pu":
-                    x_th,
-
-                "V_mag_pu":
-                    v_mag,
-
-                "V_angle_deg":
-                    v_angle_deg,
-
-                # Conventional SCL on common pu base:
-                # V_nominal_pu = 1.
-                "SCL_pu":
-                    i_mag,
-            }
-
-    return results
+    df = pd.DataFrame(rows)
+    if df["bus"].duplicated().any():
+        raise ValueError(f"{path} contains duplicate bus rows.")
+    return df.set_index("bus").sort_index()
 
 
-# ============================================================
-# Validation level 1
-#
-# Absolute state:
-# Python state vs PowerWorld state
-# ============================================================
+def compare_state(state: str) -> pd.DataFrame:
+    py = read_python(state)
+    pw = read_powerworld(state)
+    assert_same_buses(state, py, pw)
+
+    out = pd.DataFrame(index=py.index)
+    out["python_I_SCC_pu"] = py["I_mag_pu"]
+    out["powerworld_I_SCC_pu"] = pw["I_mag_pu"]
+    out["delta_I_SCC_pu"] = py["I_mag_pu"] - pw["I_mag_pu"]
+    out["abs_delta_I_SCC_pu"] = out["delta_I_SCC_pu"].abs()
+    out["delta_I_SCC_pct_of_PW"] = 100.0 * out["delta_I_SCC_pu"] / pw["I_mag_pu"]
+    out["abs_delta_I_SCC_pct_of_PW"] = out["delta_I_SCC_pct_of_PW"].abs()
+
+    out["python_I_angle_deg"] = py["I_angle_deg"]
+    out["powerworld_I_angle_deg"] = pw["I_angle_deg"]
+    out["delta_I_angle_deg"] = [
+        angle_diff(a, b)
+        for a, b in zip(py["I_angle_deg"], pw["I_angle_deg"])
+    ]
+    out["abs_delta_I_angle_deg"] = out["delta_I_angle_deg"].abs()
+
+    out["python_V_pre_pu"] = py["V_mag_pu"]
+    out["powerworld_V_pre_reconstructed_pu"] = pw["V_mag_pu"]
+    out["delta_V_pre_pu"] = py["V_mag_pu"] - pw["V_mag_pu"]
+    out["abs_delta_V_pre_pu"] = out["delta_V_pre_pu"].abs()
+
+    out["python_V_pre_angle_deg"] = py["V_angle_deg"]
+    out["powerworld_V_pre_angle_reconstructed_deg"] = pw["V_angle_deg"]
+    out["delta_V_pre_angle_deg"] = [
+        angle_diff(a, b)
+        for a, b in zip(py["V_angle_deg"], pw["V_angle_deg"])
+    ]
+    out["abs_delta_V_pre_angle_deg"] = out["delta_V_pre_angle_deg"].abs()
+
+    out["powerworld_R_th_pu"] = pw["R_th_pu"]
+    out["powerworld_X_th_pu"] = pw["X_th_pu"]
+
+    return out.reset_index()
 
 
-def compare_state(
-    state: str,
+def compare_change(
+    left: str,
+    right: str,
+    *,
+    left_label: str,
+    right_label: str,
+    delta_label: str,
 ) -> pd.DataFrame:
+    py_left, py_right = read_python(left), read_python(right)
+    pw_left, pw_right = read_powerworld(left), read_powerworld(right)
+    assert_same_buses(delta_label, py_left, py_right, pw_left, pw_right)
 
-    python = read_python_results(
-        state
+    py_delta = py_right["SCL_pu"] - py_left["SCL_pu"]
+    pw_delta = pw_right["SCL_pu"] - pw_left["SCL_pu"]
+    py_pct = 100.0 * py_delta / py_left["SCL_pu"]
+    pw_pct = 100.0 * pw_delta / pw_left["SCL_pu"]
+
+    out = pd.DataFrame(index=py_left.index)
+    out[f"python_{left_label}_SCL_pu"] = py_left["SCL_pu"]
+    out[f"python_{right_label}_SCL_pu"] = py_right["SCL_pu"]
+    out[f"python_{delta_label}_SCL_pu"] = py_delta
+    out[f"python_{delta_label}_pct"] = py_pct
+    out[f"powerworld_{left_label}_SCL_pu"] = pw_left["SCL_pu"]
+    out[f"powerworld_{right_label}_SCL_pu"] = pw_right["SCL_pu"]
+    out[f"powerworld_{delta_label}_SCL_pu"] = pw_delta
+    out[f"powerworld_{delta_label}_pct"] = pw_pct
+
+    out["delta_field_error_pu"] = py_delta - pw_delta
+    out["abs_delta_field_error_pu"] = out["delta_field_error_pu"].abs()
+    out["delta_field_error_pct_points"] = py_pct - pw_pct
+    out["abs_delta_field_error_pct_points"] = (
+        out["delta_field_error_pct_points"].abs()
     )
+    return out.reset_index()
 
-    powerworld = (
-        read_powerworld_results(
-            state
-        )
-    )
 
-    py_buses = set(
-        python
-    )
-
-    pw_buses = set(
-        powerworld
-    )
-
-    if py_buses != pw_buses:
-
-        missing_pw = sorted(
-            py_buses
-            - pw_buses
-        )
-
-        missing_py = sorted(
-            pw_buses
-            - py_buses
-        )
-
-        raise ValueError(
-            f"{state}: bus sets do not match. "
-            f"Missing in PW={missing_pw}; "
-            f"missing in Python={missing_py}"
-        )
-
-    rows = []
-
-    for bus in sorted(
-        py_buses
-    ):
-
-        py = python[
-            bus
-        ]
-
-        pw = powerworld[
-            bus
-        ]
-
-        delta_i = (
-            py["I_mag_pu"]
-            - pw["I_mag_pu"]
-        )
-
-        delta_i_angle = (
-            wrapped_angle_difference_deg(
-                py["I_angle_deg"],
-                pw["I_angle_deg"],
-            )
-        )
-
-        delta_v = (
-            py["V_mag_pu"]
-            - pw["V_mag_pu"]
-        )
-
-        delta_v_angle = (
-            wrapped_angle_difference_deg(
-                py["V_angle_deg"],
-                pw["V_angle_deg"],
-            )
-        )
-
-        rows.append(
-            {
-                "bus":
-                    bus,
-
-                "python_I_SCC_pu":
-                    py["I_mag_pu"],
-
-                "powerworld_I_SCC_pu":
-                    pw["I_mag_pu"],
-
-                "delta_I_SCC_pu":
-                    delta_i,
-
-                "abs_delta_I_SCC_pu":
-                    abs(
-                        delta_i
-                    ),
-
-                "delta_I_SCC_pct_of_PW":
-                    safe_percent(
-                        delta_i,
-                        pw["I_mag_pu"],
-                    ),
-
-                "abs_delta_I_SCC_pct_of_PW":
-                    abs(
-                        safe_percent(
-                            delta_i,
-                            pw["I_mag_pu"],
-                        )
-                    ),
-
-                "python_I_angle_deg":
-                    py["I_angle_deg"],
-
-                "powerworld_I_angle_deg":
-                    pw["I_angle_deg"],
-
-                "delta_I_angle_deg":
-                    delta_i_angle,
-
-                "abs_delta_I_angle_deg":
-                    abs(
-                        delta_i_angle
-                    ),
-
-                "python_V_pre_pu":
-                    py["V_mag_pu"],
-
-                "powerworld_V_pre_reconstructed_pu":
-                    pw["V_mag_pu"],
-
-                "delta_V_pre_pu":
-                    delta_v,
-
-                "abs_delta_V_pre_pu":
-                    abs(
-                        delta_v
-                    ),
-
-                "python_V_pre_angle_deg":
-                    py["V_angle_deg"],
-
-                "powerworld_V_pre_angle_reconstructed_deg":
-                    pw["V_angle_deg"],
-
-                "delta_V_pre_angle_deg":
-                    delta_v_angle,
-
-                "abs_delta_V_pre_angle_deg":
-                    abs(
-                        delta_v_angle
-                    ),
-
-                "powerworld_R_th_pu":
-                    pw["R_th_pu"],
-
-                "powerworld_X_th_pu":
-                    pw["X_th_pu"],
-            }
-        )
-
-    return pd.DataFrame(
-        rows
+def compare_change_from_base(scenario: str) -> pd.DataFrame:
+    return compare_change(
+        "base",
+        scenario,
+        left_label="base",
+        right_label="scenario",
+        delta_label="delta_SCL",
     )
 
 
-# ============================================================
-# Validation level 2
-#
-# Scenario-induced change:
-#
-#     state - baseline
-#
-# Python field vs PowerWorld field
-# ============================================================
-
-
-def compare_change_from_base(
-    scenario: str,
-) -> pd.DataFrame:
-
-    if scenario == "base":
-        raise ValueError(
-            "Base has no change-from-base comparison."
-        )
-
-    py_base = (
-        read_python_results(
-            "base"
-        )
-    )
-
-    py_scenario = (
-        read_python_results(
-            scenario
-        )
-    )
-
-    pw_base = (
-        read_powerworld_results(
-            "base"
-        )
-    )
-
-    pw_scenario = (
-        read_powerworld_results(
-            scenario
-        )
-    )
-
-    bus_sets = [
-        set(
-            py_base
-        ),
-        set(
-            py_scenario
-        ),
-        set(
-            pw_base
-        ),
-        set(
-            pw_scenario
-        ),
-    ]
-
-    if not all(
-        buses
-        == bus_sets[0]
-        for buses
-        in bus_sets[1:]
-    ):
-        raise ValueError(
-            f"{scenario}: bus sets do not match "
-            "for change-from-base validation."
-        )
-
-    rows = []
-
-    for bus in sorted(
-        bus_sets[0]
-    ):
-
-        py0 = (
-            py_base[
-                bus
-            ]["SCL_pu"]
-        )
-
-        pys = (
-            py_scenario[
-                bus
-            ]["SCL_pu"]
-        )
-
-        pw0 = (
-            pw_base[
-                bus
-            ]["SCL_pu"]
-        )
-
-        pws = (
-            pw_scenario[
-                bus
-            ]["SCL_pu"]
-        )
-
-        py_delta = (
-            pys
-            - py0
-        )
-
-        pw_delta = (
-            pws
-            - pw0
-        )
-
-        py_delta_pct = (
-            safe_percent(
-                py_delta,
-                py0,
-            )
-        )
-
-        pw_delta_pct = (
-            safe_percent(
-                pw_delta,
-                pw0,
-            )
-        )
-
-        error_delta = (
-            py_delta
-            - pw_delta
-        )
-
-        error_delta_pct = (
-            py_delta_pct
-            - pw_delta_pct
-        )
-
-        rows.append(
-            {
-                "bus":
-                    bus,
-
-                "python_base_SCL_pu":
-                    py0,
-
-                "python_scenario_SCL_pu":
-                    pys,
-
-                "python_delta_SCL_pu":
-                    py_delta,
-
-                "python_delta_SCL_pct":
-                    py_delta_pct,
-
-                "powerworld_base_SCL_pu":
-                    pw0,
-
-                "powerworld_scenario_SCL_pu":
-                    pws,
-
-                "powerworld_delta_SCL_pu":
-                    pw_delta,
-
-                "powerworld_delta_SCL_pct":
-                    pw_delta_pct,
-
-                "delta_field_error_pu":
-                    error_delta,
-
-                "abs_delta_field_error_pu":
-                    abs(
-                        error_delta
-                    ),
-
-                "delta_field_error_pct_points":
-                    error_delta_pct,
-
-                "abs_delta_field_error_pct_points":
-                    abs(
-                        error_delta_pct
-                    ),
-            }
-        )
-
-    return pd.DataFrame(
-        rows
+def compare_a2_minus_a1() -> pd.DataFrame:
+    return compare_change(
+        "A1",
+        "A2",
+        left_label="A1",
+        right_label="A2",
+        delta_label="A2_minus_A1",
     )
 
 
-# ============================================================
-# Validation level 3
-#
-# A2 - A1
-#
-# Isolates zero-dispatch synchronized generator vs
-# generator disconnection.
-# ============================================================
-
-
-def compare_a2_minus_a1(
-) -> pd.DataFrame:
-
-    py_a1 = (
-        read_python_results(
-            "A1"
-        )
-    )
-
-    py_a2 = (
-        read_python_results(
-            "A2"
-        )
-    )
-
-    pw_a1 = (
-        read_powerworld_results(
-            "A1"
-        )
-    )
-
-    pw_a2 = (
-        read_powerworld_results(
-            "A2"
-        )
-    )
-
-    bus_sets = [
-        set(
-            py_a1
-        ),
-        set(
-            py_a2
-        ),
-        set(
-            pw_a1
-        ),
-        set(
-            pw_a2
-        ),
-    ]
-
-    if not all(
-        buses
-        == bus_sets[0]
-        for buses
-        in bus_sets[1:]
-    ):
-        raise ValueError(
-            "A1/A2 bus sets do not match."
-        )
-
-    rows = []
-
-    for bus in sorted(
-        bus_sets[0]
-    ):
-
-        py1 = (
-            py_a1[
-                bus
-            ]["SCL_pu"]
-        )
-
-        py2 = (
-            py_a2[
-                bus
-            ]["SCL_pu"]
-        )
-
-        pw1 = (
-            pw_a1[
-                bus
-            ]["SCL_pu"]
-        )
-
-        pw2 = (
-            pw_a2[
-                bus
-            ]["SCL_pu"]
-        )
-
-        py_delta = (
-            py2
-            - py1
-        )
-
-        pw_delta = (
-            pw2
-            - pw1
-        )
-
-        py_delta_pct = (
-            safe_percent(
-                py_delta,
-                py1,
-            )
-        )
-
-        pw_delta_pct = (
-            safe_percent(
-                pw_delta,
-                pw1,
-            )
-        )
-
-        rows.append(
-            {
-                "bus":
-                    bus,
-
-                "python_A1_SCL_pu":
-                    py1,
-
-                "python_A2_SCL_pu":
-                    py2,
-
-                "python_A2_minus_A1_SCL_pu":
-                    py_delta,
-
-                "python_A2_minus_A1_pct":
-                    py_delta_pct,
-
-                "powerworld_A1_SCL_pu":
-                    pw1,
-
-                "powerworld_A2_SCL_pu":
-                    pw2,
-
-                "powerworld_A2_minus_A1_SCL_pu":
-                    pw_delta,
-
-                "powerworld_A2_minus_A1_pct":
-                    pw_delta_pct,
-
-                "delta_field_error_pu":
-                    (
-                        py_delta
-                        - pw_delta
-                    ),
-
-                "abs_delta_field_error_pu":
-                    abs(
-                        py_delta
-                        - pw_delta
-                    ),
-
-                "delta_field_error_pct_points":
-                    (
-                        py_delta_pct
-                        - pw_delta_pct
-                    ),
-
-                "abs_delta_field_error_pct_points":
-                    abs(
-                        py_delta_pct
-                        - pw_delta_pct
-                    ),
-            }
-        )
-
-    return pd.DataFrame(
-        rows
-    )
-
-
-# ============================================================
-# Summaries
-# ============================================================
-
-
-def state_summary(
-    state: str,
-    data: pd.DataFrame,
-) -> dict:
-
-    worst_i = data.loc[
-        data[
-            "abs_delta_I_SCC_pct_of_PW"
-        ].idxmax()
-    ]
-
-    worst_v = data.loc[
-        data[
-            "abs_delta_V_pre_pu"
-        ].idxmax()
-    ]
-
+def state_summary(state: str, df: pd.DataFrame) -> dict:
+    worst_i = df.loc[df["abs_delta_I_SCC_pct_of_PW"].idxmax()]
+    worst_v = df.loc[df["abs_delta_V_pre_pu"].idxmax()]
     return {
-        "comparison":
-            "state",
-
-        "case":
-            state,
-
-        "buses":
-            len(
-                data
-            ),
-
-        "I_MAE_pu":
-            data[
-                "abs_delta_I_SCC_pu"
-            ].mean(),
-
-        "I_RMSE_pu":
-            rmse(
-                data[
-                    "delta_I_SCC_pu"
-                ].tolist()
-            ),
-
-        "I_mean_abs_error_pct":
-            data[
-                "abs_delta_I_SCC_pct_of_PW"
-            ].mean(),
-
-        "I_max_abs_error_pct":
-            worst_i[
-                "abs_delta_I_SCC_pct_of_PW"
-            ],
-
-        "I_max_abs_error_bus":
-            int(
-                worst_i[
-                    "bus"
-                ]
-            ),
-
-        "I_angle_MAE_deg":
-            data[
-                "abs_delta_I_angle_deg"
-            ].mean(),
-
-        "V_MAE_pu":
-            data[
-                "abs_delta_V_pre_pu"
-            ].mean(),
-
-        "V_max_abs_error_pu":
-            worst_v[
-                "abs_delta_V_pre_pu"
-            ],
-
-        "V_max_abs_error_bus":
-            int(
-                worst_v[
-                    "bus"
-                ]
-            ),
-
-        "V_angle_MAE_deg":
-            data[
-                "abs_delta_V_pre_angle_deg"
-            ].mean(),
+        "comparison": "state",
+        "case": state,
+        "buses": len(df),
+        "I_MAE_pu": df["abs_delta_I_SCC_pu"].mean(),
+        "I_RMSE_pu": rmse(df["delta_I_SCC_pu"]),
+        "I_mean_abs_error_pct": df["abs_delta_I_SCC_pct_of_PW"].mean(),
+        "I_max_abs_error_pct": worst_i["abs_delta_I_SCC_pct_of_PW"],
+        "I_max_abs_error_bus": int(worst_i["bus"]),
+        "I_angle_MAE_deg": df["abs_delta_I_angle_deg"].mean(),
+        "V_MAE_pu": df["abs_delta_V_pre_pu"].mean(),
+        "V_max_abs_error_pu": worst_v["abs_delta_V_pre_pu"],
+        "V_max_abs_error_bus": int(worst_v["bus"]),
+        "V_angle_MAE_deg": df["abs_delta_V_pre_angle_deg"].mean(),
     }
 
 
-def change_summary(
-    label: str,
-    data: pd.DataFrame,
-) -> dict:
-
-    worst = data.loc[
-        data[
+def change_summary(label: str, df: pd.DataFrame) -> dict:
+    worst = df.loc[df["abs_delta_field_error_pct_points"].idxmax()]
+    return {
+        "comparison": "change_field",
+        "case": label,
+        "buses": len(df),
+        "delta_SCL_MAE_pu": df["abs_delta_field_error_pu"].mean(),
+        "delta_SCL_RMSE_pu": rmse(df["delta_field_error_pu"]),
+        "delta_SCL_MAE_pct_points": df[
             "abs_delta_field_error_pct_points"
-        ].idxmax()
-    ]
-
-    return {
-        "comparison":
-            "change_field",
-
-        "case":
-            label,
-
-        "buses":
-            len(
-                data
-            ),
-
-        "delta_SCL_MAE_pu":
-            data[
-                "abs_delta_field_error_pu"
-            ].mean(),
-
-        "delta_SCL_RMSE_pu":
-            rmse(
-                data[
-                    "delta_field_error_pu"
-                ].tolist()
-            ),
-
-        "delta_SCL_MAE_pct_points":
-            data[
-                "abs_delta_field_error_pct_points"
-            ].mean(),
-
-        "delta_SCL_RMSE_pct_points":
-            rmse(
-                data[
-                    "delta_field_error_pct_points"
-                ].tolist()
-            ),
-
-        "delta_SCL_max_abs_error_pct_points":
-            worst[
-                "abs_delta_field_error_pct_points"
-            ],
-
-        "delta_SCL_max_abs_error_bus":
-            int(
-                worst[
-                    "bus"
-                ]
-            ),
+        ].mean(),
+        "delta_SCL_RMSE_pct_points": rmse(df["delta_field_error_pct_points"]),
+        "delta_SCL_max_abs_error_pct_points": worst[
+            "abs_delta_field_error_pct_points"
+        ],
+        "delta_SCL_max_abs_error_bus": int(worst["bus"]),
     }
 
 
-# ============================================================
-# Output
-# ============================================================
+def write_csv(df: pd.DataFrame, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path, index=False)
+    print(f"Wrote: {path}")
 
 
-def write_dataframe(
-    data: pd.DataFrame,
-    path: Path,
-) -> None:
+def print_summary(summary: dict) -> None:
+    print(f"\n{summary['case']}")
+    print("-" * 48)
 
-    path.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    data.to_csv(
-        path,
-        index=False,
-    )
-
-    print(
-        f"Wrote: {path}"
-    )
-
-
-def print_state_summary(
-    summary: dict,
-) -> None:
-
-    print()
-    print(
-        f"{summary['case']} — "
-        "Python vs PowerWorld"
-    )
-
-    print(
-        "-" * 48
-    )
-
-    print(
-        f"Buses: "
-        f"{summary['buses']}"
-    )
-
-    print(
-        "Fault-current magnitude"
-    )
-
-    print(
-        f"  mean |error|     : "
-        f"{summary['I_MAE_pu']:.8f} pu"
-    )
-
-    print(
-        f"  RMSE             : "
-        f"{summary['I_RMSE_pu']:.8f} pu"
-    )
-
-    print(
-        f"  mean |error| [%] : "
-        f"{summary['I_mean_abs_error_pct']:.4f} %"
-    )
-
-    print(
-        f"  max  |error| [%] : "
-        f"{summary['I_max_abs_error_pct']:.4f} % "
-        f"(bus "
-        f"{summary['I_max_abs_error_bus']})"
-    )
-
-    print(
-        "Pre-fault voltage reconstructed "
-        "from PowerWorld SC export"
-    )
-
-    print(
-        f"  mean |error|     : "
-        f"{summary['V_MAE_pu']:.8f} pu"
-    )
-
-    print(
-        f"  max  |error|     : "
-        f"{summary['V_max_abs_error_pu']:.8f} pu "
-        f"(bus "
-        f"{summary['V_max_abs_error_bus']})"
-    )
-
-
-def print_change_summary(
-    summary: dict,
-) -> None:
-
-    print()
-    print(
-        f"{summary['case']} — "
-        "ΔSCL field validation"
-    )
-
-    print(
-        "-" * 48
-    )
-
-    print(
-        f"Buses: "
-        f"{summary['buses']}"
-    )
-
-    print(
-        f"  mean |field error| : "
-        f"{summary['delta_SCL_MAE_pct_points']:.6f} "
-        "percentage points"
-    )
-
-    print(
-        f"  RMSE field error   : "
-        f"{summary['delta_SCL_RMSE_pct_points']:.6f} "
-        "percentage points"
-    )
-
-    print(
-        f"  max |field error|  : "
-        f"{summary['delta_SCL_max_abs_error_pct_points']:.6f} "
-        "percentage points "
-        f"(bus "
-        f"{summary['delta_SCL_max_abs_error_bus']})"
-    )
-
-
-# ============================================================
-# Validation runners
-# ============================================================
-
-
-def validate_state(
-    state: str,
-) -> dict:
-
-    data = compare_state(
-        state
-    )
-
-    output = (
-        VALIDATION_ROOT
-        / state
-        / "python_vs_powerworld.csv"
-    )
-
-    write_dataframe(
-        data,
-        output,
-    )
-
-    summary = (
-        state_summary(
-            state,
-            data,
+    if summary["comparison"] == "state":
+        print(f"Buses: {summary['buses']}")
+        print(
+            f"Fault current: mean |error| = {summary['I_mean_abs_error_pct']:.4f} %, "
+            f"max = {summary['I_max_abs_error_pct']:.4f} % "
+            f"(bus {summary['I_max_abs_error_bus']})"
         )
-    )
+        print(
+            f"Pre-fault V: mean |error| = {summary['V_MAE_pu']:.8f} pu, "
+            f"max = {summary['V_max_abs_error_pu']:.8f} pu "
+            f"(bus {summary['V_max_abs_error_bus']})"
+        )
+    else:
+        print(f"Buses: {summary['buses']}")
+        print(
+            f"ΔSCL field: mean |error| = "
+            f"{summary['delta_SCL_MAE_pct_points']:.6f} pp, "
+            f"RMSE = {summary['delta_SCL_RMSE_pct_points']:.6f} pp, "
+            f"max = {summary['delta_SCL_max_abs_error_pct_points']:.6f} pp "
+            f"(bus {summary['delta_SCL_max_abs_error_bus']})"
+        )
 
-    print_state_summary(
-        summary
-    )
 
+def validate_state(state: str) -> dict:
+    df = compare_state(state)
+    write_csv(df, VALIDATION_ROOT / state / "python_vs_powerworld.csv")
+    summary = state_summary(state, df)
+    print_summary(summary)
     return summary
 
 
-def validate_change_from_base(
-    scenario: str,
-) -> dict:
-
-    data = (
-        compare_change_from_base(
-            scenario
-        )
-    )
-
-    output = (
+def validate_change_from_base(scenario: str) -> dict:
+    df = compare_change_from_base(scenario)
+    write_csv(
+        df,
         VALIDATION_ROOT
         / scenario
-        / "delta_from_base_python_vs_powerworld.csv"
+        / "delta_from_base_python_vs_powerworld.csv",
     )
-
-    write_dataframe(
-        data,
-        output,
-    )
-
-    summary = (
-        change_summary(
-            f"{scenario} vs base",
-            data,
-        )
-    )
-
-    print_change_summary(
-        summary
-    )
-
+    summary = change_summary(f"{scenario} vs base", df)
+    print_summary(summary)
     return summary
 
 
-def validate_a1_a2(
-) -> dict:
-
-    data = (
-        compare_a2_minus_a1()
-    )
-
-    output = (
-        VALIDATION_ROOT
-        / "A2_vs_A1"
-        / "python_vs_powerworld.csv"
-    )
-
-    write_dataframe(
-        data,
-        output,
-    )
-
-    summary = (
-        change_summary(
-            "A2 vs A1",
-            data,
-        )
-    )
-
-    print_change_summary(
-        summary
-    )
-
+def validate_a1_a2() -> dict:
+    df = compare_a2_minus_a1()
+    write_csv(df, VALIDATION_ROOT / "A2_vs_A1" / "python_vs_powerworld.csv")
+    summary = change_summary("A2 vs A1", df)
+    print_summary(summary)
     return summary
 
 
-def validate_all(
-) -> None:
-
-    summaries = []
-
-    # --------------------------------------------------------
-    # Level 1:
-    # every absolute operating state
-    # --------------------------------------------------------
-
-    for state in STATE_ORDER:
-
-        summaries.append(
-            validate_state(
-                state
-            )
-        )
-
-    # --------------------------------------------------------
-    # Level 2:
-    # scenario-induced field relative to baseline
-    # --------------------------------------------------------
-
-    for scenario in SCENARIO_ORDER:
-
-        summaries.append(
-            validate_change_from_base(
-                scenario
-            )
-        )
-
-    # --------------------------------------------------------
-    # Level 3:
-    # A2 vs A1 mechanism-isolation comparison
-    # --------------------------------------------------------
-
-    summaries.append(
-        validate_a1_a2()
-    )
-
-    summary_path = (
-        VALIDATION_ROOT
-        / "summary.csv"
-    )
-
-    write_dataframe(
-        pd.DataFrame(
-            summaries
-        ),
-        summary_path,
-    )
+def validate_all() -> None:
+    summaries = [validate_state(state) for state in STATES]
+    summaries += [validate_change_from_base(s) for s in SCENARIOS]
+    summaries.append(validate_a1_a2())
+    write_csv(pd.DataFrame(summaries), VALIDATION_ROOT / "summary.csv")
 
 
-# ============================================================
-# CLI
-# ============================================================
-
-
-def main(
-) -> None:
-
+def main() -> None:
     parser = argparse.ArgumentParser(
-        description=(
-            "Validate Glover-37 Python short-circuit "
-            "results against PowerWorld exports."
-        )
+        description="Validate Glover-37 Python SCC results against PowerWorld."
     )
-
-    group = (
-        parser
-        .add_mutually_exclusive_group(
-            required=True
-        )
-    )
-
-    group.add_argument(
-        "--all",
-        action="store_true",
-        help=(
-            "Run all state, change-field, "
-            "and A1/A2 comparisons."
-        ),
-    )
-
-    group.add_argument(
-        "--state",
-        choices=STATE_ORDER,
-        help=(
-            "Validate one absolute state "
-            "against PowerWorld."
-        ),
-    )
-
-    group.add_argument(
-        "--scenario",
-        choices=SCENARIO_ORDER,
-        help=(
-            "Validate one scenario both as an "
-            "absolute state and as a change from baseline."
-        ),
-    )
-
-    group.add_argument(
-        "--a1-a2",
-        action="store_true",
-        help=(
-            "Validate the direct A2-minus-A1 "
-            "change field."
-        ),
-    )
-
-    args = (
-        parser.parse_args()
-    )
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--all", action="store_true")
+    group.add_argument("--state", choices=STATES)
+    group.add_argument("--scenario", choices=SCENARIOS)
+    group.add_argument("--a1-a2", action="store_true")
+    args = parser.parse_args()
 
     if args.all:
-
         validate_all()
-
     elif args.state:
-
-        validate_state(
-            args.state
-        )
-
+        validate_state(args.state)
     elif args.scenario:
-
         summaries = [
-            validate_state(
-                args.scenario
-            ),
-            validate_change_from_base(
-                args.scenario
-            ),
+            validate_state(args.scenario),
+            validate_change_from_base(args.scenario),
         ]
-
-        write_dataframe(
-            pd.DataFrame(
-                summaries
-            ),
-            (
-                VALIDATION_ROOT
-                / args.scenario
-                / "summary.csv"
-            ),
+        write_csv(
+            pd.DataFrame(summaries),
+            VALIDATION_ROOT / args.scenario / "summary.csv",
         )
-
-    elif args.a1_a2:
-
+    else:
         validate_a1_a2()
 
 
