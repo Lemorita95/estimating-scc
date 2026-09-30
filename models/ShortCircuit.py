@@ -2,84 +2,7 @@ import numpy as np
 from scipy.sparse import coo_matrix, csc_matrix, issparse
 from scipy.sparse.linalg import splu
 
-class ClassicShortCircuit:
 
-    @staticmethod
-    def compute_ZBus(YBus):
-        '''
-            compute the bus impedance matrix ZBus from the admittance matrix YBus
-            method: compute only diagonal elements with LU decomposition
-        '''
-        if not issparse(YBus):
-            raise TypeError("YBus must be a scipy sparse matrix")
-
-        N = YBus.shape[0]
-        ZBus_diagonal = np.zeros(N, dtype=complex)
-
-        # Convert once to CSC (required by splu)
-        YBus_csc = YBus.tocsc()
-
-        # LU factorization (done once)
-        lu = splu(YBus_csc)
-
-        # Solve N linear systems (unit vectors)
-        for i in range(N):
-            b = np.zeros(N, dtype=complex)
-            b[i] = 1.0
-            x = lu.solve(b)
-            ZBus_diagonal[i] = x[i]
-
-        return ZBus_diagonal
-
-    @staticmethod
-    def compute_scc(YBus, V_bus):
-        '''
-            compute the short circuit current for all buses, for a single snapshot,
-            YBus: num_bus x num_bus, contains system admittance matrix (passive + generators)
-            V_bus: num_bus x 1, pre-fault bus voltages (p.u.)
-
-            method: compute the impedance matrix ZBus diagonal elements
-        '''
-        ZBus_diagonal = ClassicShortCircuit.compute_ZBus(YBus)
-
-        assert ZBus_diagonal.shape == V_bus.shape, f"ZBus {ZBus_diagonal.shape} and V_Bus {V_bus.shape} shape mismatch"
-        assert np.all(ZBus_diagonal != 0), "ZBus has zero-valued elements"
-
-        return np.divide(V_bus, ZBus_diagonal)
-
-    @staticmethod
-    def compose_YSystem(passive_ybus, active_elements):
-        '''
-            add Yprimitive to Ypassive
-        '''
-
-        rows = []
-        cols = []
-        data = []
-
-        # generators admittances
-        for (_, bus_idx), (src, V_pre, S_pre) in active_elements.items():
-            # only compute determined elements
-            if src.element_type == 'load':
-                _, _, d = src.get_Y(V_pre, S_pre)
-            elif src.element_type == 'generator':
-                _, _, d = src.get_Y()
-            elif src.element_type == 'external_grid':
-                _, _, d = src.get_Y()
-            else:
-                continue
-
-            rows.extend([bus_idx])
-            cols.extend([bus_idx])
-            data.extend(d)
-
-        if not data:
-            return passive_ybus  # nothing to add
-
-        delta = coo_matrix((data, (rows, cols)), shape=passive_ybus.shape).tocsr()
-
-        return passive_ybus + delta
-    
 class ShortCircuit:
     
     @staticmethod
@@ -174,24 +97,53 @@ class ShortCircuit:
         return tasks
 
     @staticmethod
-    def compute_residual(V, tasks, Y_passive_fault):
+    def build_Y_SCC(V, tasks, Y_passive):
+        """
+        Assemble the SCC nodal admittance matrix at voltage state V.
 
-        Y_SCC = Y_passive_fault.copy()
-        I_inj = np.zeros_like(V)
-        rows, cols, data = [], [], []
+        Y_passive must not include the explicit fault admittance if the goal is
+        to obtain the converged network Y_SCC for analysis.
+        """
+        Y_SCC = Y_passive.copy().tocsc()
+
+        rows = []
+        cols = []
+        data = []
 
         for t in tasks.values():
-
             bus_idx = t["bus_idx"]
 
-            _, _, Y_prim =  t["Y"](V)
-            rows.extend([bus_idx])
-            cols.extend([bus_idx])
+            _, _, Y_prim = t["Y"](V)
+
+            rows.append(bus_idx)
+            cols.append(bus_idx)
             data.extend(Y_prim)
 
-            I_inj[bus_idx] += t["I"](V)
+        if data:
+            Y_active = csc_matrix(
+                (data, (rows, cols)),
+                shape=Y_SCC.shape,
+            )
 
-        Y_SCC += csc_matrix((data, (rows, cols)), shape=Y_SCC.shape)
+            Y_SCC += Y_active
+
+        return Y_SCC
+
+    @staticmethod
+    def compute_residual(V, tasks, Y_passive_fault):
+
+        Y_SCC = ShortCircuit.build_Y_SCC(
+            V,
+            tasks,
+            Y_passive_fault,
+        )
+
+        I_inj = np.zeros_like(V)
+
+        for t in tasks.values():
+            bus_idx = t["bus_idx"]
+
+            I_inj[bus_idx] += t["I"](V)
 
         return Y_SCC @ V - I_inj
 
@@ -215,7 +167,7 @@ class ShortCircuit:
         return J
 
     @staticmethod
-    def SCC_NR(fault_bus_idx, V_complex, passive_YBus, active_elements, max_iter=100, tol=1e-6, zf=1e-6):
+    def SCC_NR(fault_bus_idx, V_complex, passive_YBus, active_elements, max_iter=100, tol=1e-6, zf=1e-6, return_details=False):
         '''
             ThetaV: the initial guess. it is the power flow solution
             Y_SCC -> csc sparse: contain all impedances. passive network, generators equivalent and load equivalents
@@ -272,7 +224,25 @@ class ShortCircuit:
             plt.show()
             raise RuntimeError("Short circuit did not converged. Interrupting simulation.")
 
-        return V_fault[fault_bus_idx] / zf
+        i_fault = V_fault[fault_bus_idx] / zf
+
+        if return_details:
+
+            # Rebuild Y_SCC at the accepted converged fault-voltage state,
+            # but WITHOUT the explicit fault admittance.
+            Y_SCC_converged = ShortCircuit.build_Y_SCC(
+                V_fault,
+                tasks,
+                passive_YBus,
+            )
+
+            return {
+                "I_fault": i_fault,
+                "V_fault": V_fault.copy(),
+                "Y_SCC": Y_SCC_converged,
+            }
+
+        return i_fault
 
     @staticmethod
     def compute_dIdV(nonlinear_sources, V, ThetaV, dV=1e-6):
