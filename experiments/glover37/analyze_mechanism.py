@@ -355,7 +355,7 @@ def main():
     print("===========================================")
     print("Baseline max recovered Y_SCC variation:", f"{yvar0:.16e}")
 
-    out_dir = ROOT / "results" / "glover37" / "general_coupling"
+    out_dir = ROOT / "results" / "glover37" / "mechanism"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     results = []

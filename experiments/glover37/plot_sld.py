@@ -30,6 +30,7 @@ RESULTS_ROOT = (
     ROOT
     / "results"
     / "glover37"
+    / "static"
 )
 
 FIGURES_ROOT = (

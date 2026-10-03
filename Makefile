@@ -1,127 +1,95 @@
 PYTHON ?= python
 
-POWERWORLD_GLOVER37 := data/powerworld/glover37
-GLOVER37_CASE := cases/glover37.json
-GLOVER37_REPORT := $(POWERWORLD_GLOVER37)/conversion_report.md
+CASE := cases/glover37.json
+POWERWORLD_DATA := data/powerworld/glover37
+SE3_DATA := data/se3_2025.csv
+
+RESULTS := results/glover37
+STATIC_RESULTS := $(RESULTS)/static
+VALIDATION_RESULTS := $(RESULTS)/validation
+MECHANISM_RESULTS := $(RESULTS)/mechanism
+TEMPORAL_RESULTS := $(RESULTS)/temporal
+TEMPORAL_ANALYSIS := $(TEMPORAL_RESULTS)/analysis
 
 
 .PHONY: \
-	build-glover37-case \
-	run \
-	run-all \
-	analyze \
-	analyze-all \
-	plot \
-	plot-all \
-	validate-pw \
-	validate-pw-state \
-	validate-pw-scenario \
-	validate-pw-a1-a2 \
-	clean-results
+	help \
+	case \
+	static \
+	static-analysis \
+	static-figures \
+	validation \
+	mechanism \
+	temporal \
+	temporal-analysis \
+	reproduce \
+	clean
 
 
-# ------------------------------------------------------------
-# Build solver-ready case from PowerWorld baseline exports
-# ------------------------------------------------------------
+help:
+	@echo "Conference-paper reproducibility workflow"
+	@echo
+	@echo "  make case               Rebuild the 37-bus case from PowerWorld exports"
+	@echo "  make static             Run the six controlled sensitivity scenarios"
+	@echo "  make static-analysis    Compute static scenario changes from baseline"
+	@echo "  make static-figures     Generate static spatial figures"
+	@echo "  make validation         Reproduce PowerWorld comparison results"
+	@echo "  make mechanism          Reproduce structural-change mechanism analysis"
+	@echo "  make temporal           Run the 168-hour temporal experiment"
+	@echo "  make temporal-analysis  Reproduce temporal-spatial metrics and figures"
+	@echo "  make reproduce          Reproduce the complete paper evidence chain"
+	@echo "  make clean              Remove generated results"
 
-build-glover37-case:
+
+case:
 	$(PYTHON) tools/pw2json.py \
-		$(POWERWORLD_GLOVER37)/base \
-		-o $(GLOVER37_CASE) \
-		--report $(GLOVER37_REPORT)
+		$(POWERWORLD_DATA)/base \
+		-o $(CASE) \
+		--report $(POWERWORLD_DATA)/conversion_report.md
 
 
-# ------------------------------------------------------------
-# Experiment execution
-#
-# Examples:
-#
-#   make run SCENARIO=A1
-#   make analyze SCENARIO=A1
-#   make plot SCENARIO=A1
-#
-# ------------------------------------------------------------
-
-run:
-ifndef SCENARIO
-	$(error Usage: make run SCENARIO=A1)
-endif
-	$(PYTHON) -m experiments.glover37.run \
-		--scenario $(SCENARIO)
-
-
-run-all:
+static:
 	$(PYTHON) -m experiments.glover37.run --all
 
 
-analyze:
-ifndef SCENARIO
-	$(error Usage: make analyze SCENARIO=A1)
-endif
-	$(PYTHON) -m experiments.glover37.analysis \
-		--scenario $(SCENARIO)
-
-
-analyze-all:
+static-analysis:
 	$(PYTHON) -m experiments.glover37.analysis --all
 
 
-plot:
-ifndef SCENARIO
-	$(error Usage: make plot SCENARIO=A1)
-endif
-	$(PYTHON) -m experiments.glover37.plot_sld \
-		--scenario $(SCENARIO)
-
-
-plot-all:
+static-figures:
 	$(PYTHON) -m experiments.glover37.plot_sld --all
 
 
-# ------------------------------------------------------------
-# PowerWorld validation
-#
-# Full Gate-6 validation:
-#
-#   make validate-pw
-#
-# Individual checks:
-#
-#   make validate-pw-state STATE=base
-#   make validate-pw-scenario SCENARIO=A2
-#   make validate-pw-a1-a2
-#
-# ------------------------------------------------------------
-
-validate-pw:
-	$(PYTHON) -m experiments.glover37.validate_powerworld \
-		--all
+validation:
+	$(PYTHON) -m experiments.glover37.validate_powerworld --all
 
 
-validate-pw-state:
-ifndef STATE
-	$(error Usage: make validate-pw-state STATE=base)
-endif
-	$(PYTHON) -m experiments.glover37.validate_powerworld \
-		--state $(STATE)
+mechanism:
+	$(PYTHON) -m experiments.glover37.diagnostic_general_outage_coupling
 
 
-validate-pw-scenario:
-ifndef SCENARIO
-	$(error Usage: make validate-pw-scenario SCENARIO=A1)
-endif
-	$(PYTHON) -m experiments.glover37.validate_powerworld \
-		--scenario $(SCENARIO)
+temporal:
+	$(PYTHON) -m experiments.glover37.run_temporal \
+		--se3-file $(SE3_DATA) \
+		--timestamp-column timestamp \
+		--load-column SE3
 
 
-validate-pw-a1-a2:
-	$(PYTHON) -m experiments.glover37.validate_powerworld \
-		--a1-a2
+temporal-analysis:
+	$(PYTHON) -m experiments.glover37.temporal_spatial_analysis \
+		--input-dir $(TEMPORAL_RESULTS) \
+		--output-dir $(TEMPORAL_ANALYSIS)
 
 
-# ------------------------------------------------------------
-# Cleanup
-# ------------------------------------------------------------
+reproduce: \
+	case \
+	static \
+	static-analysis \
+	validation \
+	mechanism \
+	temporal \
+	temporal-analysis
 
-clean-results:
-	rm -rf results/glover37
+
+clean:
+	rm -rf $(RESULTS)

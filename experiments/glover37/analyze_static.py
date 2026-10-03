@@ -6,7 +6,7 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[2]
-RESULTS_ROOT = ROOT / "results" / "glover37"
+RESULTS_ROOT = ROOT / "results" / "glover37" / "static"
 
 S_BASE_MVA = 100.0
 
