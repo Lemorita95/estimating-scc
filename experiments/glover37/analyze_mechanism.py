@@ -226,7 +226,7 @@ def print_result(r):
 
 def save_csv(r, out_dir):
     path = out_dir / f"{r['name']}_general_coupling.csv"
-    with path.open("w", newline="") as f:
+    with path.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow([
             "bus",
