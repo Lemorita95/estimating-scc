@@ -15,6 +15,8 @@ SE3 bidding area used solely as the temporal scaling signal in the paper.
 Source:
 - Provider: [ENTSO-E transparency platform](https://transparency.entsoe.eu/)
 - Dataset/product: Total load - Day-ahead/Actual (TR 6.1.B)
+- Units: MW
+- Timezone: UTC
 
 Processing:
 - No short-circuit results were used to select the temporal interval.

@@ -30,14 +30,14 @@ help:
 	@echo "Conference-paper reproducibility workflow"
 	@echo
 	@echo "  make case               Rebuild the 37-bus case from PowerWorld exports"
-	@echo "  make static             Run the six controlled sensitivity scenarios"
-	@echo "  make static-analysis    Compute static scenario changes from baseline"
+	@echo "  make static             Run the controlled static sensitivity scenarios"
+	@echo "  make static-analysis    Analyze static changes relative to the baseline"
 	@echo "  make static-figures     Generate static spatial figures"
 	@echo "  make validation         Reproduce PowerWorld comparison results"
 	@echo "  make mechanism          Reproduce structural-change mechanism analysis"
 	@echo "  make temporal           Run the 168-hour temporal experiment"
 	@echo "  make temporal-analysis  Reproduce temporal-spatial metrics and figures"
-	@echo "  make reproduce          Reproduce the complete paper evidence chain"
+	@echo "  make reproduce          Reproduce the complete numerical evidence chain"
 	@echo "  make clean              Remove generated results"
 
 
@@ -52,15 +52,15 @@ static:
 	$(PYTHON) -m experiments.glover37.run_static --all
 
 
-static-analysis:
+static-analysis: static
 	$(PYTHON) -m experiments.glover37.analyze_static --all
 
 
-static-figures:
+static-figures: static-analysis
 	$(PYTHON) -m experiments.glover37.plot_sld --all
 
 
-validation:
+validation: static
 	$(PYTHON) -m experiments.glover37.validate_powerworld --all
 
 
@@ -75,7 +75,7 @@ temporal:
 		--load-column SE3
 
 
-temporal-analysis:
+temporal-analysis: temporal
 	$(PYTHON) -m experiments.glover37.analyze_temporal \
 		--input-dir $(TEMPORAL_RESULTS) \
 		--output-dir $(TEMPORAL_ANALYSIS)
@@ -83,11 +83,9 @@ temporal-analysis:
 
 reproduce: \
 	case \
-	static \
 	static-analysis \
 	validation \
 	mechanism \
-	temporal \
 	temporal-analysis
 
 
