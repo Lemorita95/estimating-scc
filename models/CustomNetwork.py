@@ -23,7 +23,7 @@ class CustomNetwork():
         self.file = file
 
     def create_network(self):
-        with open(self.file, "r") as f:
+        with open(self.file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
             self.buses = {}

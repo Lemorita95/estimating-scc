@@ -1,3 +1,5 @@
+export PYTHONUTF8 := 1
+
 PYTHON ?= python
 
 CASE := cases/glover37.json
@@ -11,6 +13,8 @@ MECHANISM_RESULTS := $(RESULTS)/mechanism
 TEMPORAL_RESULTS := $(RESULTS)/temporal
 TEMPORAL_ANALYSIS := $(TEMPORAL_RESULTS)/analysis
 
+LOG_DIR := logs
+REPRODUCE_LOG := $(LOG_DIR)/reproduce.log
 
 .PHONY: \
 	help \
@@ -81,13 +85,36 @@ temporal-analysis: temporal
 		--output-dir $(TEMPORAL_ANALYSIS)
 
 
-reproduce: \
-	case \
-	static-analysis \
-	validation \
-	mechanism \
-	temporal-analysis
+reproduce:
+	@mkdir -p $(LOG_DIR)
+	@: > $(REPRODUCE_LOG)
+	@echo "Starting full reproduction..."
+	@echo "[1/6] RUNNING: case reconstruction"
+	@$(MAKE) case >> $(REPRODUCE_LOG) 2>&1
+	@echo "[1/6] DONE:    case reconstruction"
 
+	@echo "[2/6] RUNNING: static sensitivity analysis"
+	@$(MAKE) static-analysis >> $(REPRODUCE_LOG) 2>&1
+	@echo "[2/6] DONE:    static sensitivity analysis"
+
+	@echo "[3/6] RUNNING: PowerWorld validation"
+	@$(MAKE) validation >> $(REPRODUCE_LOG) 2>&1
+	@echo "[3/6] DONE:    PowerWorld validation"
+
+	@echo "[4/6] RUNNING: mechanism analysis"
+	@$(MAKE) mechanism >> $(REPRODUCE_LOG) 2>&1
+	@echo "[4/6] DONE:    mechanism analysis"
+
+	@echo "[5/6] RUNNING: temporal experiment"
+	@$(MAKE) temporal >> $(REPRODUCE_LOG) 2>&1
+	@echo "[5/6] DONE:    temporal experiment"
+
+	@echo "[6/6] RUNNING: temporal analysis"
+	@$(MAKE) temporal-analysis >> $(REPRODUCE_LOG) 2>&1
+	@echo "[6/6] DONE:    temporal analysis"
+
+	@echo "Reproduction complete."
+	@echo "Log file: $(REPRODUCE_LOG)"
 
 clean:
 	rm -rf $(RESULTS)

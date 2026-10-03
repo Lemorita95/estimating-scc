@@ -404,10 +404,10 @@ def save_outputs(source, week, limits, schedule, scl, summary):
 
     metadata = {
         "experiment": "37-bus temporal-spatial short-circuit-level assessment",
-        "network": str(CASE_FILE.relative_to(ROOT).as_posix()),
+        "network": CASE_FILE.resolve().relative_to(ROOT.resolve()).as_posix(),
         "SE3": {
             "year": YEAR,
-            "source_file": str(source.relative_to(ROOT).as_posix()),
+            "source_file": source.resolve().relative_to(ROOT.resolve()).as_posix(),
             "role": "temporal scaling only; 37-bus benchmark is not SE3",
         },
         "week_selection": {
@@ -429,7 +429,7 @@ def save_outputs(source, week, limits, schedule, scl, summary):
             "priority": "descending MWMax",
             "tie_break": "ascending BusNum then ID",
             "allocation": "sequential loading within MWMin/MWMax",
-            "limits_source": str(GEN_LIMITS_FILE.relative_to(ROOT).as_posix()),
+            "limits_source": GEN_LIMITS_FILE.resolve().relative_to(ROOT.resolve()).as_posix(),
         },
         "contingency": {
             "element": CONTINGENCY,

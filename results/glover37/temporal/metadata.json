@@ -1,9 +1,9 @@
 {
-  "experiment": "Gate 9 temporal-spatial assessment",
-  "network": "cases\\glover37.json",
+  "experiment": "37-bus temporal-spatial short-circuit-level assessment",
+  "network": "cases/glover37.json",
   "SE3": {
     "year": 2025,
-    "source_file": "C:\\Users\\leana737\\Documents\\1-Publications\\26HT-SCC\\0_src\\estimating-scc\\data\\se3_2025.csv",
+    "source_file": "data/se3_2025.csv",
     "role": "temporal scaling only; 37-bus benchmark is not SE3"
   },
   "week_selection": {
@@ -25,7 +25,7 @@
     "priority": "descending MWMax",
     "tie_break": "ascending BusNum then ID",
     "allocation": "sequential loading within MWMin/MWMax",
-    "limits_source": "data\\powerworld\\glover37\\base\\generators.csv"
+    "limits_source": "data/powerworld/glover37/base/generators.csv"
   },
   "contingency": {
     "element": "line.line 39-47 ckt 1",

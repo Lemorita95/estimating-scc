@@ -306,7 +306,7 @@ def save_plots(r, out_dir):
 
 def save_summary(results, out_dir):
     path = out_dir / "general_outage_coupling_summary.csv"
-    with path.open("w", newline="") as f:
+    with path.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow([
             "scenario",
