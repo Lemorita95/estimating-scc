@@ -49,11 +49,11 @@ case:
 
 
 static:
-	$(PYTHON) -m experiments.glover37.run --all
+	$(PYTHON) -m experiments.glover37.run_static --all
 
 
 static-analysis:
-	$(PYTHON) -m experiments.glover37.analysis --all
+	$(PYTHON) -m experiments.glover37.analyze_static --all
 
 
 static-figures:
@@ -65,7 +65,7 @@ validation:
 
 
 mechanism:
-	$(PYTHON) -m experiments.glover37.diagnostic_general_outage_coupling
+	$(PYTHON) -m experiments.glover37.analyze_mechanism
 
 
 temporal:
@@ -76,7 +76,7 @@ temporal:
 
 
 temporal-analysis:
-	$(PYTHON) -m experiments.glover37.temporal_spatial_analysis \
+	$(PYTHON) -m experiments.glover37.analyze_temporal \
 		--input-dir $(TEMPORAL_RESULTS) \
 		--output-dir $(TEMPORAL_ANALYSIS)
 

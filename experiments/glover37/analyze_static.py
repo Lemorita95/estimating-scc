@@ -84,7 +84,7 @@ def is_valid_result(
 ) -> tuple[bool, str]:
     """
     Determine whether one result is complete enough
-    for Gate-6 analysis.
+    for static sensitivity analysis.
     """
 
     if not metadata_file(
@@ -149,7 +149,7 @@ def is_valid_result(
 def available_scenarios() -> list[str]:
     """
     Return valid available scenarios while preserving
-    the predefined Gate-5 scenario order.
+    the predefined static-scenario order.
     """
 
     available = []
@@ -424,7 +424,7 @@ def summarize(
     comparison: pd.DataFrame,
 ) -> None:
     """
-    Gate-6 primary summary uses short-circuit level.
+    The primary summary uses short-circuit level.
 
     I_SCC remains available in the output CSV as a
     supporting diagnostic.

@@ -1,35 +1,30 @@
-#!/usr/bin/env python3
 """
-Gate 10 temporal-spatial analysis
-=================================
+Temporal-spatial analysis of the 37-bus short-circuit-level experiment.
 
-This script replaces the earlier Gate-10 analysis script.
+Scientific questions
+--------------------
+The analysis preserves the bus dimension and evaluates:
 
-Scientific focus
-----------------
-The analysis preserves the bus dimension and targets the Gate-8 temporal-spatial
-questions directly:
+1. whether local SCL trajectories evolve differently across buses;
+2. whether different buses attain minimum SCL under different system states;
+3. whether the spatial ordering of SCL changes over time;
+4. how the fixed line contingency modifies temporal-spatial SCL evolution.
 
-1. Do local SCL trajectories evolve differently across buses?
-2. Do different buses attain minimum SCL under different system states?
-3. Does the spatial ordering of SCL change over time?
-4. How does the fixed contingency modify the temporal-spatial evolution?
-
-The previous hour-0 normalization has been removed. Temporal heatmaps use each
-bus's own temporal mean as the reference:
+For bus-wise temporal visualization, each bus may be normalized relative to
+its own temporal mean:
 
     delta_i(t) = 100 * [SCL_i(t) - mean_t(SCL_i)] / mean_t(SCL_i)
 
-This avoids privileging an arbitrary initial state while retaining the local
-(bus-wise) temporal variation.
+This preserves local temporal variation without privileging an arbitrary
+initial state.
 
-Targeted illustrations are generated for the Gate-10 observations:
-- buses 13 and 14: spatial-order reversal / crossing;
-- buses 5 and 34: similar SCL magnitude but different temporal sensitivity;
-- bus 44: intact-vs-contingency trajectory interaction.
+The analysis also produces targeted illustrations for selected observed
+behaviors, including spatial-order reversals, differences in temporal
+sensitivity between buses with similar SCL magnitude, and intact-versus-
+contingency trajectory differences.
 
-The contingency/load relationship is also quantified as a diagnostic. It is
-not automatically treated as a paper claim.
+The contingency/load relationship is computed only as a descriptive
+diagnostic and is not interpreted as causal.
 
 Expected inputs
 ---------------
@@ -38,15 +33,11 @@ dispatch_schedule.csv
 selected_week.csv
 contingency_effect.csv
 
-Usage
------
-python gate10_temporal_spatial_analysis.py
-
-or
-
-python gate10_temporal_spatial_analysis.py \
-    --input-dir results/gate10_temporal \
-    --output-dir results/gate10_temporal/gate10_temporal_spatial_analysis
+Example
+-------
+python -m experiments.glover37.analyze_temporal \
+    --input-dir results/glover37/temporal \
+    --output-dir results/glover37/temporal/analysis
 """
 
 from __future__ import annotations
@@ -69,12 +60,12 @@ REQUIRED = {
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Gate 10 temporal-spatial SCL analysis")
+    p = argparse.ArgumentParser(description="Analyze temporal-spatial SCL variation in the 37-bus experiment.")
     p.add_argument("--input-dir", type=Path, default=Path("."))
     p.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("gate10_temporal_spatial_analysis"),
+        default=Path("results/glover37/temporal/analysis"),
     )
     return p.parse_args()
 
@@ -458,7 +449,7 @@ def fig_contingency_load_diagnostic(cont, week, diagnostic, longest, outdir):
 def write_readme(outdir, intact, variation, critical, rank_summary, reversals, contcrit, diagnostic, longest):
     high = variation.head(10)[["bus", "relative_temporal_range_pct"]]
     lines = [
-        "Gate 10 temporal-spatial analysis", "=" * 34, "",
+        "Temporal-spatial SCL analysis", "=" * 29, "",
         "Core design", "-----------",
         "- Bus-wise spatial information is preserved.",
         "- No system-wide mean change is used as a primary temporal metric.",
@@ -533,7 +524,7 @@ def main():
 
     write_readme(args.output_dir, intact, variation, critical, rank_summary, reversals, contcrit, load_diag, longest)
 
-    print("Gate 10 temporal-spatial analysis complete.")
+    print("Temporal-spatial SCL analysis complete.")
     print(f"Output directory: {args.output_dir.resolve()}")
     print(f"Buses with intact rank changes: {int(rank_summary['rank_changed'].sum())}/{intact['bus'].nunique()}")
     print(f"Bus pairs with ordering reversals: {len(reversals)}")

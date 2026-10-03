@@ -1,27 +1,35 @@
-#!/usr/bin/env python3
 """
-Gate 9 — 37-bus temporal-spatial SCL experiment.
+37-bus temporal-spatial short-circuit-level experiment.
 
-Run from the `paper-work` branch repository root, e.g.:
+Run from the repository root, e.g.:
 
-    python experiments/glover37/run_temporal.py \
+    python -m experiments.glover37.run_temporal \
         --se3-file data/se3_2025.csv \
         --timestamp-column timestamp \
         --load-column SE3
 
-Locked design:
-  • SE3 2025 hourly demand; choose the continuous 168 h window with max Pmax-Pmin
-  • selected-week mean -> validated 37-bus baseline load
-  • scale every benchmark load P,Q by the same hourly factor
-  • no converters
-  • non-slack SG priority = descending MWMax; sequential loading within MWMin/MWMax
-  • slack bus 31 stays connected and balances residual demand/losses
-  • line 39-47 ckt 1 outage evaluated at every hour
-  • contingency uses frozen intact commitment/non-slack dispatch
-  • 168 intact + 168 contingency states
+Experiment design:
+  • use the 2025 hourly SE3 demand series as a temporal scaling signal;
+  • select the continuous 168-hour window with maximum Pmax-Pmin;
+  • map the selected-week mean to the validated 37-bus baseline load;
+  • scale every benchmark load P and Q by the same hourly factor;
+  • use synchronous generators only in the temporal experiment;
+  • rank non-slack generators by descending MWMax and dispatch sequentially
+    within MWMin/MWMax;
+  • keep slack bus 31 connected to balance residual demand and losses;
+  • evaluate outage of line 39-47 circuit 1 at every hourly state;
+  • freeze intact commitment and non-slack dispatch before applying the
+    contingency;
+  • evaluate 168 intact and 168 contingency states.
 
-Outputs: selected_week.csv, generator_priority.csv, dispatch_schedule.csv,
-run_summary.csv, scl_timeseries.csv, contingency_effect.csv, metadata.json.
+Outputs:
+  selected_week.csv
+  generator_priority.csv
+  dispatch_schedule.csv
+  run_summary.csv
+  scl_timeseries.csv
+  contingency_effect.csv
+  metadata.json
 """
 
 from __future__ import annotations
@@ -395,11 +403,11 @@ def save_outputs(source, week, limits, schedule, scl, summary):
     } for g in limits]).to_csv(OUTPUT_DIR / "generator_priority.csv", index=False)
 
     metadata = {
-        "experiment": "Gate 9 temporal-spatial assessment",
-        "network": str(CASE_FILE.relative_to(ROOT)),
+        "experiment": "37-bus temporal-spatial short-circuit-level assessment",
+        "network": str(CASE_FILE.relative_to(ROOT).as_posix()),
         "SE3": {
             "year": YEAR,
-            "source_file": str(source.resolve()),
+            "source_file": str(source.relative_to(ROOT).as_posix()),
             "role": "temporal scaling only; 37-bus benchmark is not SE3",
         },
         "week_selection": {
@@ -421,7 +429,7 @@ def save_outputs(source, week, limits, schedule, scl, summary):
             "priority": "descending MWMax",
             "tie_break": "ascending BusNum then ID",
             "allocation": "sequential loading within MWMin/MWMax",
-            "limits_source": str(GEN_LIMITS_FILE.relative_to(ROOT)),
+            "limits_source": str(GEN_LIMITS_FILE.relative_to(ROOT).as_posix()),
         },
         "contingency": {
             "element": CONTINGENCY,
@@ -447,7 +455,7 @@ def save_outputs(source, week, limits, schedule, scl, summary):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run Gate-9 temporal-spatial SCL experiment on Glover 37-bus."
+        description="Run the temporal-spatial SCL experiment on the Glover 37-bus system."
     )
     parser.add_argument("--se3-file", type=Path, required=True)
     parser.add_argument("--timestamp-column", default=None)
